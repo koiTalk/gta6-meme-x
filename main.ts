@@ -31,11 +31,13 @@ try {
   process.exit(1);
 }
 
+const STATUS_URL = /^https:\/\/x\.com\/[^/]+\/status\/\d+(\?.*)?$/;
+
 if (
   typeof post !== 'object' ||
   post === null ||
   typeof (post as { url?: unknown }).url !== 'string' ||
-  !((post as { url: string }).url.startsWith('https://x.com/'))
+  !STATUS_URL.test((post as { url: string }).url)
 ) {
   console.error(
     `POST.json at ${POST_PATH} must name an X post address: {"url": "https://x.com/<handle>/status/<id>"}`
