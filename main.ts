@@ -4,7 +4,9 @@
 // public account, and this program hands the grader the post's address by
 // copying POST.json from the repository root to the output directory, where
 // the house reads it and fetches the post from X (first picture + text) for
-// the judge. That copy is all this program does.
+// the judge. Before copying, it validates POST.json so a broken or wrong
+// address fails loudly instead of silently entering a bad link. That
+// validated copy is all this program does.
 //
 // Node 22, standard library only. No network, no clock, no files outside
 // the repository: the same run always writes the same bytes.
@@ -13,15 +15,37 @@
 //   mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
 // out/POST.json is then byte for byte this directory's POST.json.
 
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const BOT_DIR = process.env.MAKEFUN_BOT_DIR ?? '/bot';
 const OUTPUT_DIR = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
+const POST_PATH = join(BOT_DIR, 'POST.json');
+
+let post: unknown;
+try {
+  post = JSON.parse(readFileSync(POST_PATH, 'utf8'));
+} catch (err) {
+  console.error(`POST.json could not be parsed at ${POST_PATH}: ${(err as Error).message}`);
+  process.exit(1);
+}
+
+if (
+  typeof post !== 'object' ||
+  post === null ||
+  typeof (post as { url?: unknown }).url !== 'string' ||
+  !((post as { url: string }).url.startsWith('https://x.com/'))
+) {
+  console.error(
+    `POST.json at ${POST_PATH} must name an X post address: {"url": "https://x.com/<handle>/status/<id>"}`
+  );
+  process.exit(1);
+}
+
 mkdirSync(OUTPUT_DIR, { recursive: true });
 try {
-  copyFileSync(join(BOT_DIR, 'POST.json'), join(OUTPUT_DIR, 'POST.json'));
+  copyFileSync(POST_PATH, join(OUTPUT_DIR, 'POST.json'));
 } catch (err) {
   console.error(`POST.json could not be copied from ${BOT_DIR}: ${(err as Error).message}`);
   process.exit(1);
